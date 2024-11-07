@@ -1,0 +1,34 @@
+FROM node:20.15.0 AS builder
+RUN apt-get update && \
+	apt-get install -y \
+	        ca-certificates \
+	        build-essential \
+	        git \
+	        xvfb libnss3 libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libxss1 libasound2 libxtst6 xauth \
+	        chromium
+
+ARG UID=1000
+ARG GID=1000
+
+RUN groupmod -g $GID node && usermod -u $UID -g $GID node
+RUN npm install --global npm
+
+COPY . /app
+WORKDIR /app
+
+RUN npm install
+
+ARG VUE_APP_WIKIBASE_API_URL='https://ludap.debug.lu/w/api.php'
+ARG VUE_APP_QUERY_SERVICE_EMBED_URL='https://wdqs.debug.lu/embed.html'
+ARG VUE_APP_QUERY_SERVICE_URL='https://wdqs.debug.lu'
+ARG VUE_APP_SUBCLASS_PROPERTY_MAP='{"default":"P279","P171":"P171","P131":"P131"}'
+ARG VUE_APP_SI_CONVERSION_PROPERTY='P2370'
+ARG VUE_APP_URL_SHORTENER_SERVICE_URL='https://meta.wikimedia.beta.wmflabs.org/w/api.php'
+
+RUN npm run build -- --base=/
+
+
+FROM nginx AS app
+
+COPY --from=builder /app/dist /usr/share/nginx/html
+
